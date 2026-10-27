@@ -1,0 +1,6 @@
+{
+  "name": "AI Project Gantt Generator",
+  "description": "Create timelines for AI use cases with dependencies, milestones, and export to PowerPoint.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

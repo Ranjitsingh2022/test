@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Gantt Generator</title>
+  <meta name="description" content="Enterprise AI Gantt Timeline Generator with Gemini AI planning, interactive Gantt chart, milestone tracking, and PowerPoint PPTX export." />
+  <meta property="og:title" content="AI Gantt Generator" />
+  <meta property="og:description" content="Enterprise AI Gantt Timeline Generator with Gemini AI planning, interactive Gantt chart, milestone tracking, and PowerPoint PPTX export." />
+  <link rel="icon" type="image/png" href="Logo%20Gantt.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs@3.12.0/libs/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs@3.12.0/dist/pptxgen.min.js"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+</head>
+<body class="bg-white text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
+  
+  <header class="h-auto min-h-[64px] py-3 border-b border-slate-200 px-4 md:px-6 flex flex-col xl:flex-row items-center justify-between bg-slate-50 shrink-0 gap-3">
+    <div class="flex items-center gap-3">
+      <img src="Logo%20Gantt.png" alt="Logo" class="w-8 h-8 object-contain" />
+      <div>
+        <div class="text-lg font-semibold tracking-tight text-slate-800 text-center xl:text-left">AI Gantt Generator</div>
+      </div>
+    </div>
+    
+    <div class="flex items-center justify-center flex-wrap gap-2 md:gap-4 w-full xl:w-auto">
+      <input type="text" id="project-name" class="text-sm font-semibold tracking-tight text-slate-800 bg-white border-slate-200 hover:border-slate-300 focus:border-[#e60000] border rounded px-3 py-1.5 outline-none w-40 sm:w-56 shrink-0 shadow-sm" placeholder="Chart Title">
+      
+      <div class="flex border border-slate-200 rounded-md bg-white overflow-hidden shadow-sm shrink-0 overflow-x-auto max-w-[100vw]">
+        <button class="view-btn px-3 py-1.5 text-xs font-semibold capitalize border-r border-slate-200" data-view="days">Days</button>
+        <button class="view-btn px-3 py-1.5 text-xs font-semibold capitalize border-r border-slate-200" data-view="weeks">Weeks</button>
+        <button class="view-btn px-3 py-1.5 text-xs font-semibold capitalize border-r border-slate-200" data-view="wcount">Week Count</button>
+        <button class="view-btn px-3 py-1.5 text-xs font-semibold capitalize border-r border-slate-200" data-view="months">Months</button>
+        
+      </div>
+
+      <button id="btn-new-task" class="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-500 bg-white border border-slate-200 rounded-md hover:bg-slate-50 hover:text-indigo-600 transition-colors shadow-sm whitespace-nowrap shrink-0">
+        <i data-feather="plus-square" class="w-4 h-4"></i> New Task
+      </button>
+
+      <div class="relative group">
+        <button class="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors shadow-sm whitespace-nowrap shrink-0">
+          <i data-feather="layout" class="w-4 h-4"></i> Load Chart
+        </button>
+        <div class="absolute right-0 mt-1 w-64 bg-white border border-slate-200 rounded-md shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+          <div class="py-1" id="template-list">
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-row items-center justify-center gap-2 shrink-0 w-full sm:w-auto">
+        <button id="btn-save" class="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 transition-colors shadow-sm whitespace-nowrap shrink-0">
+          <i data-feather="save" class="w-4 h-4"></i> Save
+        </button>
+        <button id="btn-export" class="flex items-center gap-2 bg-[#e60000] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-[#cc0000] transition-colors shadow-sm whitespace-nowrap shrink-0">
+          <i data-feather="download" class="w-4 h-4"></i> Export <span class="hidden sm:inline">to PPT</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex flex-1 flex-col overflow-hidden">
+    <div class="flex flex-1 overflow-hidden relative">
+    
+
+    <aside id="task-sidebar" class="w-full sm:w-[350px] md:w-[30%] md:min-w-[350px] md:max-w-[450px] absolute md:relative z-40 h-full border-r border-slate-200 flex flex-col shrink-0 bg-slate-50 hidden transition-all shadow-2xl md:shadow-none">
+      <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
+        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Project Controls</h2>
+        <button id="btn-add-task" class="flex items-center gap-1 py-1.5 px-3 border border-slate-300 rounded text-slate-500 text-xs font-bold hover:border-slate-400 hover:text-slate-700 transition-colors shadow-sm bg-white">
+          <i data-feather="plus" class="w-3 h-3"></i> Add Task
+        </button>
+      </div>
+      <div class="flex-1 overflow-auto p-4 bg-white" id="task-list">
+      </div>
+    </aside>
+
+    <section class="flex-1 flex flex-col min-w-0 bg-white overflow-hidden relative w-full">
+      <button id="toggle-task-pane" class="absolute left-0 top-4 w-5 h-12 bg-white border border-slate-200 border-l-0 rounded-r-md flex items-center justify-center shadow-sm z-50 text-slate-400 hover:text-indigo-600 transition-colors" title="Toggle Task Editor">
+        <i data-feather="chevron-right" id="pane-chevron" class="w-4 h-4"></i>
+      </button>
+      <div class="hidden md:flex flex-1 overflow-auto relative flex-col" id="gantt-body-container">
+        <div id="gantt-header" class="h-12 border-b border-slate-200 grid grid-cols-[250px_1fr] shrink-0 sticky top-0 z-30 bg-white min-w-max">
+        </div>
+        <div id="gantt-body" class="relative min-w-full">
+        </div>
+      </div>
+      <div class="flex md:hidden flex-1 overflow-auto flex-col p-4 bg-slate-50 gap-3" id="mobile-list-view">
+      </div>
+      <div class="hidden sm:flex h-auto min-h-[80px] py-3 border-t border-slate-200 bg-slate-50 flex-wrap items-center px-4 md:px-6 justify-between shrink-0 sticky bottom-0 z-30 gap-4">
+        <div class="hidden sm:flex gap-8">
+          <div>
+            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Total Duration</p>
+            <p class="text-lg font-bold text-slate-800" id="stat-duration">0 Days</p>
+          </div>
+          <div class="w-px h-10 bg-slate-200 my-auto"></div>
+          <div>
+            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Total Tasks</p>
+            <div class="flex items-center gap-2">
+              <p class="text-lg font-bold text-slate-800" id="stat-tasks">0</p>
+              <span class="px-1.5 py-0.5 bg-[#e60000]/10 text-[#e60000] rounded text-[10px] font-bold">ACTIVE</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    </div>
+    <!-- AI Chat Sidebar -->
+    <div class="h-[40vh] sm:h-[35vh] min-h-[180px] sm:min-h-[250px] border-t border-slate-200 bg-white flex flex-col shrink-0 z-40 relative shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
+      <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-white shadow-sm">
+        <h2 class="text-xs font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2"><i data-feather="message-square" class="w-4 h-4 text-indigo-600"></i> Gantt generation Model</h2>
+      </div>
+      <div id="chat-messages" class="flex-1 overflow-auto p-4 flex flex-col gap-4 bg-slate-50 text-sm">
+        <div class="flex items-start gap-2">
+          <div class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0"><i data-feather="zap" class="w-3 h-3"></i></div>
+          <div class="bg-white border border-slate-200 rounded-lg rounded-tl-none p-3 shadow-sm">
+            <p class="text-slate-700">Hello! I'm your Gantt generation Model. Tell me what project you'd like to plan, and I'll generate a timeline for you.</p>
+          </div>
+        </div>
+      </div>
+      <div class="p-3 bg-white border-t border-slate-200">
+        <div class="relative max-w-5xl mx-auto flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:h-[60px]">
+          <textarea id="chat-input" class="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white transition-colors resize-none h-full" placeholder="Message Gantt generation Model..."></textarea>
+          <button id="btn-chat-send" class="w-full sm:w-24 py-3 sm:py-0 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 flex sm:flex-col flex-row items-center justify-center gap-2 sm:gap-1 h-full shadow-sm shrink-0">
+            <i data-feather="send" class="w-4 h-4"></i>
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  
+
+  <script>
+    function parseDate(dateStr) {
+      if (!dateStr) return new Date();
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? new Date() : d;
+    }
+
+    function addDays(date, days) {
+      const result = new Date(date);
+      result.setDate(result.getDate() + days);
+      return result;
+    }
+
+    function differenceInDays(date1, date2) {
+      const diffTime = date1.getTime() - date2.getTime();
+      return Math.round(diffTime / (1000 * 3600 * 24));
+    }
+
+    function formatDateMonthYear(date) {
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `${months[date.getMonth()]} ${date.getFullYear()}`;
+    }
+
+    function formatDateMonthDay(date) {
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `${months[date.getMonth()]} ${String(date.getDate()).padStart(2, '0')}`;
+    }
+
+    function formatDateDayMonth(date) {
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `${date.getDate()} ${months[date.getMonth()]}`;
+    }
+
+    function formatDateYYYYMMDD(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    const today = new Date();
+    const d = (offset) => formatDateYYYYMMDD(addDays(today, offset));
+
+    const AI_TEMPLATES = [
+      {
+        id: 'genai-chatbot',
+        name: 'Generative AI Chatbot Deployment',
+        description: 'Standard timeline for deploying an internal RAG-based LLM chatbot.',
+        tasks: [
+          { id: 'T1', name: 'Requirements & Security Review', startDate: d(0), endDate: d(14), owner: 'Product', dependencies: [], isMilestone: false, progress: 100, color: '#e60000' },
+          { id: 'T2', name: 'Data Pipeline & Vector DB Setup', startDate: d(14), endDate: d(28), owner: 'Data Eng', dependencies: ['T1'], isMilestone: false, progress: 40, color: '#333333' },
+          { id: 'T3', name: 'Model Selection & Prompt Eval', startDate: d(14), endDate: d(21), owner: 'AI Eng', dependencies: ['T1'], isMilestone: false, progress: 60, color: '#666666' },
+          { id: 'T4', name: 'RAG Architecture Integration', startDate: d(21), endDate: d(40), owner: 'AI Eng', dependencies: ['T2', 'T3'], isMilestone: false, progress: 10, color: '#990000' },
+          { id: 'T5', name: 'UI/UX Chat Interface', startDate: d(28), endDate: d(45), owner: 'Frontend', dependencies: ['T1'], isMilestone: false, progress: 0, color: '#4a4a4a' },
+          { id: 'T6', name: 'User Acceptance Testing (UAT)', startDate: d(45), endDate: d(55), owner: 'QA', dependencies: ['T4', 'T5'], isMilestone: false, progress: 0, color: '#333333' },
+          { id: 'T7', name: 'Production Launch', startDate: d(55), endDate: d(55), owner: 'Lead', dependencies: ['T6'], isMilestone: true, progress: 0, color: '#e60000' },
+        ]
+      },
+      {
+        id: 'predictive-maintenance',
+        name: 'Predictive Maintenance IoT AI',
+        description: 'Timeline for building an ML model for IoT sensor data to predict failures.',
+        tasks: [
+          { id: 'T1', name: 'Sensor Data Ingestion', startDate: d(0), endDate: d(20), owner: 'Data Eng', dependencies: [], isMilestone: false, progress: 100, color: '#e60000' },
+          { id: 'T2', name: 'Data Cleaning & EDA', startDate: d(20), endDate: d(30), owner: 'Data Sci', dependencies: ['T1'], isMilestone: false, progress: 50, color: '#333333' },
+          { id: 'T3', name: 'Baseline Model Training', startDate: d(30), endDate: d(45), owner: 'Data Sci', dependencies: ['T2'], isMilestone: false, progress: 0, color: '#666666' },
+          { id: 'T4', name: 'Edge Deployment Optimization', startDate: d(45), endDate: d(60), owner: 'MLOps', dependencies: ['T3'], isMilestone: false, progress: 0, color: '#990000' },
+          { id: 'T5', name: 'Pilot Rollout (Factory A)', startDate: d(60), endDate: d(75), owner: 'Ops', dependencies: ['T4'], isMilestone: false, progress: 0, color: '#4a4a4a' },
+          { id: 'T6', name: 'Global Model Distribution', startDate: d(75), endDate: d(75), owner: 'Lead', dependencies: ['T5'], isMilestone: true, progress: 0, color: '#e60000' },
+        ]
+      }
+    ];
+
+    $(document).ready(function() {
+      $('#toggle-task-pane').on('click', function() {
+        const sidebar = $('#task-sidebar');
+        sidebar.toggleClass('hidden');
+        if (sidebar.hasClass('hidden')) {
+           $('#pane-chevron').attr('data-feather', 'chevron-right');
+        } else {
+           $('#pane-chevron').attr('data-feather', 'chevron-left');
+        }
+        feather.replace();
+      });
+      // Sync project-name input with variable
+      $('#project-name').on('change', function() {
+        projectName = $(this).val();
+      });
+      feather.replace();
+
+      // Application State
+      let tasks = [];
+      let projectName = 'New Project';
+      let viewMode = 'months';
+      let isRendering = false;
+
+      // Restore last session state from localStorage if available
+      try {
+        const cached = localStorage.getItem('gantt-state');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed.tasks)) tasks = parsed.tasks;
+          if (parsed.projectName) projectName = parsed.projectName;
+          if (parsed.viewMode) viewMode = parsed.viewMode;
+        }
+      } catch (err) {
+        console.warn('Unable to load cached gantt-state:', err);
+      }
+
+      function saveState() {
+        localStorage.setItem('gantt-state', JSON.stringify({ tasks, projectName, viewMode }));
+      }
+
+      function loadSavedChartsList() {
+        const saved = JSON.parse(localStorage.getItem('gantt-saved-charts') || '[]');
+        const $list = $('#template-list');
+        $list.empty();
+        if (saved.length === 0) {
+           $list.append('<div class="px-4 py-3 text-xs text-slate-400 text-center">No saved charts</div>');
+           return;
+        }
+        saved.forEach((c, idx) => {
+           const btn = $(`
+             <div class="flex items-center justify-between px-4 py-2 hover:bg-slate-50 group border-b border-slate-100 last:border-0 cursor-pointer">
+               <button class="flex-1 text-left text-xs font-semibold text-slate-700 truncate load-chart-btn" data-idx="${idx}">
+                 ${c.projectName || 'Untitled'}
+               </button>
+               <button class="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity delete-chart-btn" data-idx="${idx}">
+                 <i data-feather="trash-2" class="w-3.5 h-3.5"></i>
+               </button>
+             </div>
+           `);
+           $list.append(btn);
+        });
+        feather.replace();
+      }
+
+      $('#btn-save').on('click', function() {
+        const saved = JSON.parse(localStorage.getItem('gantt-saved-charts') || '[]');
+        saved.push({ projectName, tasks, viewMode, timestamp: Date.now() });
+        localStorage.setItem('gantt-saved-charts', JSON.stringify(saved));
+        loadSavedChartsList();
+        
+        const ogHtml = $(this).html();
+        $(this).html('<i data-feather="check" class="w-4 h-4"></i> Saved!');
+        feather.replace();
+        setTimeout(() => { $(this).html(ogHtml); feather.replace(); }, 2000);
+      });
+      
+      $('#template-list').on('click', '.load-chart-btn', function() {
+        const idx = $(this).data('idx');
+        const saved = JSON.parse(localStorage.getItem('gantt-saved-charts') || '[]');
+        if (saved[idx]) {
+          projectName = saved[idx].projectName;
+          tasks = saved[idx].tasks || [];
+          viewMode = saved[idx].viewMode || 'months';
+          render();
+        }
+      });
+      
+      $('#template-list').on('click', '.delete-chart-btn', function(e) {
+        e.stopPropagation();
+        const idx = $(this).data('idx');
+        let saved = JSON.parse(localStorage.getItem('gantt-saved-charts') || '[]');
+        saved.splice(idx, 1);
+        localStorage.setItem('gantt-saved-charts', JSON.stringify(saved));
+        loadSavedChartsList();
+      });
+      
+      loadSavedChartsList();
+
+    
+
+      function generateId() {
+        const currentIds = tasks.map(t => {
+          const match = t.id.match(/^T(\d+)$/);
+          return match ? parseInt(match[1], 10) : 0;
+        });
+        const maxId = currentIds.length > 0 ? Math.max(...currentIds) : 0;
+        return `T${maxId + 1}`;
+      }
+
+      $('#project-name').on('input', function() {
+        projectName = $(this).val();
+        saveState();
+      });
+
+      $('.view-btn').on('click', function() {
+        viewMode = $(this).data('view');
+        render();
+      });
+
+      $('#btn-new-task').on('click', function() {
+        $('#task-sidebar').removeClass('hidden');
+        $('#pane-chevron').attr('data-feather', 'chevron-left');
+        feather.replace();
+        
+        tasks.push({
+          id: generateId(),
+          name: 'New Task',
+          startDate: formatDateYYYYMMDD(new Date()),
+          endDate: formatDateYYYYMMDD(addDays(new Date(), 14)),
+          owner: '',
+          dependencies: [],
+          isMilestone: false,
+          progress: 0,
+          color: '#333333'
+        });
+        render();
+        setTimeout(() => {
+          $('#task-list').scrollTop($('#task-list')[0].scrollHeight);
+        }, 100);
+      });
+
+      
+      // Chat logic
+      let chatHistory = [];
+      
+      async function sendChatMessage() {
+        const text = $('#chat-input').val().trim();
+        if (!text) return;
+        
+        $('#chat-input').val('');
+        
+        // Append user message
+        chatHistory.push({ role: 'user', text });
+        appendChatMessage('user', text);
+        
+        // Show loading
+        const $loading = $('<div class="flex items-start gap-2 chat-loading"><div class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0"><i data-feather="zap" class="w-3 h-3"></i></div><div class="bg-white border border-slate-200 rounded-lg rounded-tl-none p-3 shadow-sm flex items-center gap-2"><i data-feather="loader" class="w-3 h-3 animate-spin"></i><span class="text-slate-500">Thinking...</span></div></div>');
+        $('#chat-messages').append($loading);
+        $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
+        feather.replace();
+        
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: chatHistory, chartContext: { projectName, tasks } })
+          });
+          
+          if (!res.ok) throw new Error('Failed to fetch from AI');
+          const data = await res.json();
+          
+          $('.chat-loading').remove();
+          
+          if (data.toolCall) {
+             const args = data.toolCall.args;
+             tasks = args.tasks || [];
+             projectName = args.projectName || 'AI Project';
+             render();
+             chatHistory.push({ role: 'assistant', toolCall: data.toolCall });
+             chatHistory.push({ role: 'tool', toolName: data.toolCall.name, response: { success: true } });
+             appendChatMessage('assistant', 'I have updated the Gantt chart with the new timeline.');
+          } else if (data.text) {
+             chatHistory.push({ role: 'assistant', text: data.text });
+             appendChatMessage('assistant', data.text);
+          }
+          
+        } catch (error) {
+          $('.chat-loading').remove();
+          appendChatMessage('assistant', 'Sorry, I encountered an error: ' + error.message);
+        }
+      }
+      
+      function appendChatMessage(role, text) {
+         let html = '';
+         if (role === 'user') {
+            html = `<div class="flex items-start gap-2 flex-row-reverse">
+              <div class="w-6 h-6 rounded-full bg-slate-300 text-slate-700 flex items-center justify-center shrink-0"><i data-feather="user" class="w-3 h-3"></i></div>
+              <div class="bg-[#e60000] text-white rounded-lg rounded-tr-none p-3 shadow-sm max-w-[85%] whitespace-pre-wrap">${text}</div>
+            </div>`;
+         } else {
+            html = `<div class="flex items-start gap-2">
+              <div class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0"><i data-feather="zap" class="w-3 h-3"></i></div>
+              <div class="bg-white border border-slate-200 rounded-lg rounded-tl-none p-3 shadow-sm max-w-[85%] text-slate-700 whitespace-pre-wrap markdown-body">${text}</div>
+            </div>`;
+         }
+         $('#chat-messages').append(html);
+         $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
+         feather.replace();
+      }
+      
+      $('#btn-chat-send').on('click', sendChatMessage);
+
+      $('#chat-input').on('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendChatMessage();
+        }
+      });
+
+          
+          
+
+      $('#btn-add-task').on('click', function() {
+        tasks.push({
+          id: generateId(),
+          name: 'New Task',
+          startDate: formatDateYYYYMMDD(new Date()),
+          endDate: formatDateYYYYMMDD(new Date()),
+          owner: '',
+          dependencies: [],
+          isMilestone: false,
+          progress: 0,
+          color: '#e60000'
+        });
+        render();
+      });
+
+      
+
+      function renderTaskEditor() {
+        const $list = $('#task-list');
+        $list.empty();
+
+        if (tasks.length === 0) {
+          $list.append(`<div class="p-8 text-center text-slate-400 text-sm font-medium border-2 border-dashed border-slate-300 rounded">No tasks yet. Add a task or load a template.</div>`);
+          return;
+        }
+
+        tasks.forEach((task, idx) => {
+          const taskHtml = `
+            <div class="p-3 mb-2 bg-white border border-slate-200 rounded-md hover:border-[#e60000]/40 transition-colors group relative shadow-sm">
+              <div class="flex justify-between items-start mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-[#e60000]">${task.id}.</span>
+                  <input type="text" class="task-name text-sm font-bold text-slate-800 bg-transparent outline-none w-[180px] border-b border-transparent focus:border-[#e60000]/40" placeholder="Task Name" value="${task.name}" data-idx="${idx}">
+                </div>
+                <button class="btn-remove-task text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" data-idx="${idx}">
+                  <i data-feather="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+              
+              <div class="grid grid-cols-2 gap-2 text-[10px] uppercase font-bold text-slate-400">
+                <div>
+                  <label class="block mb-0.5">Start Date</label>
+                  <input type="date" class="task-start w-full bg-slate-50 border border-slate-200 rounded px-1.5 py-1 text-slate-700 outline-none focus:border-[#e60000] font-sans" value="${task.startDate}" data-idx="${idx}">
+                </div>
+                <div>
+                  <label class="block mb-0.5" style="${task.isMilestone ? 'opacity:0.5;' : ''}">End Date</label>
+                  <input type="date" class="task-end w-full bg-slate-50 border border-slate-200 rounded px-1.5 py-1 text-slate-700 outline-none focus:border-[#e60000] font-sans" value="${task.endDate}" data-idx="${idx}" ${task.isMilestone ? 'disabled' : ''}>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 mt-2 text-[10px] uppercase font-bold text-slate-400">
+                <div>
+                  <label class="block mb-0.5">Owner</label>
+                  <input type="text" class="task-owner w-full bg-slate-50 border border-slate-200 rounded px-1.5 py-1 text-slate-700 outline-none focus:border-[#e60000] font-sans" placeholder="Owner" value="${task.owner}" data-idx="${idx}">
+                </div>
+                <div>
+                  <label class="block mb-0.5">Deps (IDs)</label>
+                  <input type="text" class="task-deps w-full bg-slate-50 border border-slate-200 rounded px-1.5 py-1 text-slate-700 outline-none focus:border-[#e60000] font-sans" placeholder="e.g. T1" value="${task.dependencies.join(', ')}" data-idx="${idx}">
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
+                <div class="flex items-center gap-2">
+                  <input type="color" class="task-color w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" value="${task.color || '#e60000'}" data-idx="${idx}">
+                  <div class="flex flex-col">
+                    <span class="text-[9px] uppercase font-bold text-slate-400 mb-0.5">Progress (<span class="prog-val">${task.progress}</span>%)</span>
+                    <input type="range" class="task-progress w-20 accent-[#e60000]" min="0" max="100" value="${task.progress}" data-idx="${idx}">
+                  </div>
+                </div>
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" class="task-milestone rounded border-slate-300 accent-[#e60000] text-[#e60000] w-3.5 h-3.5" data-idx="${idx}" ${task.isMilestone ? 'checked' : ''}>
+                  <span class="text-[10px] uppercase font-bold text-slate-500">Milestone</span>
+                </label>
+              </div>
+            </div>
+          `;
+          $list.append(taskHtml);
+        });
+        feather.replace();
+      }
+
+      function renderGanttChart() {
+        const $header = $('#gantt-header');
+        const $body = $('#gantt-body');
+
+        $header.empty();
+        $body.empty();
+
+        if (tasks.length === 0) {
+          $body.html('<div class="flex items-center justify-center h-full text-slate-400 font-bold uppercase tracking-widest text-xs mt-20">Gantt Chart will appear here</div>');
+          $('#stat-duration').text('0 Days');
+          $('#stat-tasks').text('0');
+          return;
+        }
+
+        const validTasks = tasks.filter(t => t.startDate && t.endDate);
+        let minDate, maxDate, totalDays;
+        if (validTasks.length === 0) {
+          minDate = new Date();
+          maxDate = addDays(minDate, 30);
+          totalDays = 30;
+        } else {
+          const starts = validTasks.map(t => parseDate(t.startDate));
+          const ends = validTasks.map(t => parseDate(t.endDate));
+          minDate = addDays(new Date(Math.min(...starts.map(d=>d.getTime()))), -2);
+          maxDate = addDays(new Date(Math.max(...ends.map(d=>d.getTime()))), 5);
+          totalDays = Math.max(1, differenceInDays(maxDate, minDate));
+        }
+
+        $('#stat-duration').text(`${totalDays} Days`);
+        $('#stat-tasks').text(`${tasks.length}`);
+
+        const columns = [];
+        if (viewMode === 'days') {
+          for (let i = 0; i <= totalDays; i++) {
+            const d = addDays(minDate, i);
+            columns.push({ date: d, label: formatDateDayMonth(d) });
+          }
+        } else if (viewMode === 'weeks') {
+          let cur = new Date(minDate);
+          while (cur.getDay() !== 1) cur = addDays(cur, -1);
+          while (differenceInDays(maxDate, cur) >= -7) {
+            columns.push({ date: cur, label: formatDateMonthDay(cur) });
+            cur = addDays(cur, 7);
+          }
+        } else if (viewMode === 'wcount') {
+          let cur = new Date(minDate);
+          while (cur.getDay() !== 1) cur = addDays(cur, -1);
+          let w = 1;
+          while (differenceInDays(maxDate, cur) >= -7) {
+            columns.push({ date: cur, label: `W${w++}` });
+            cur = addDays(cur, 7);
+          }
+        } else if (viewMode === 'months') {
+          let cur = new Date(minDate);
+          while (cur.getDate() !== 1) cur = addDays(cur, -1);
+          while (differenceInDays(maxDate, cur) >= -31) {
+            columns.push({ date: cur, label: formatDateMonthYear(cur) });
+            cur = addDays(cur, 32);
+            cur = new Date(cur.getFullYear(), cur.getMonth(), 1);
+          }
+        } 
+        const $mob = $('#mobile-list-view');
+        $mob.empty();
+        if (tasks.length === 0) {
+          $mob.html('<div class="text-center text-slate-400 font-bold uppercase tracking-widest text-xs mt-10">No tasks</div>');
+        } else {
+          tasks.forEach(task => {
+             const start = formatDateMonthDay(parseDate(task.startDate));
+             const end = formatDateMonthDay(parseDate(task.endDate));
+             $mob.append(`
+                <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col gap-2 relative overflow-hidden shrink-0">
+                   <div class="absolute left-0 top-0 bottom-0 w-1" style="background-color: ${task.color}"></div>
+                   <div class="pl-2 flex justify-between items-start">
+                      <div>
+                        <div class="text-[10px] font-bold text-slate-400 uppercase">${task.id}</div>
+                        <div class="text-sm font-bold text-slate-800 leading-tight">${task.name}</div>
+                      </div>
+                      ${task.isMilestone ? '<i data-feather="hexagon" class="w-4 h-4 text-amber-500 fill-amber-500 shrink-0"></i>' : ''}
+                   </div>
+                   <div class="pl-2 flex justify-between items-center mt-1">
+                     <div class="text-xs text-slate-500 font-semibold flex items-center gap-1"><i data-feather="calendar" class="w-3 h-3"></i>${start} - ${end}</div>
+                     <div class="text-xs font-bold ${task.progress === 100 ? 'text-emerald-600' : 'text-indigo-600'}">${task.progress}%</div>
+                   </div>
+                   ${task.owner ? `<div class="pl-2 mt-1"><span class="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold uppercase">${task.owner}</span></div>` : ''}
+                </div>
+             `);
+          });
+          feather.replace();
+        }
+
+        const minWidth = Math.max(850, viewMode === 'days' ? totalDays * 40 : (viewMode === 'weeks' || viewMode === 'wcount') ? (totalDays/7)*80 : (totalDays/30)*120);
+
+        const $headerLeft = $(`<div class="border-r border-slate-200 flex items-center px-4 bg-slate-50"><span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Phase & Ownership</span></div>`);
+        const $headerRight = $(`<div class="relative w-full h-full overflow-hidden" style="min-width: ${minWidth}px"></div>`);
+
+        columns.forEach(col => {
+          const offset = differenceInDays(col.date, minDate);
+          const left = (offset / totalDays) * 100;
+          $headerRight.append(`<div class="absolute top-0 bottom-0 border-l border-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap px-2" style="left: ${left}%">${col.label}</div>`);
+        });
+
+        $header.append($headerLeft).append($headerRight);
+
+        const rowHeight = 80;
+        $body.css({ height: `${tasks.length * rowHeight}px`, minWidth: `${minWidth + 250}px` });
+        $('#gantt-header').css({ minWidth: `${minWidth + 250}px` });
+
+        tasks.forEach((task, i) => {
+          const top = i * rowHeight;
+          const $row = $(`<div class="absolute left-0 right-0 grid grid-cols-[250px_1fr] group border-b border-slate-100 hover:bg-slate-50" style="top: ${top}px; height: ${rowHeight}px"></div>`);
+          
+          const $rowLeft = $(`
+            <div class="border-r border-slate-200 flex flex-col justify-center px-4 transition-colors z-20 bg-white ${task.isMilestone ? 'bg-red-50/20' : ''} group-hover:bg-slate-50">
+              <p class="text-sm font-bold text-slate-800 flex items-center gap-2 truncate">
+                ${task.isMilestone ? '<i data-feather="hexagon" class="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0"></i>' : ''}
+                <span class="truncate">${task.name}</span>
+              </p>
+              ${task.isMilestone 
+                ? `<span class="text-[10px] text-slate-400 font-bold uppercase mt-1">Critical Milestone</span>`
+                : `<div class="flex items-center gap-2 mt-1">
+                     <div class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[9px] font-bold text-slate-600 shrink-0">${task.owner ? task.owner.slice(0, 2).toUpperCase() : 'NA'}</div>
+                     <span class="text-xs text-slate-500 truncate">${task.owner || 'Unassigned'}</span>
+                   </div>`
+              }
+            </div>
+          `);
+
+          const $rowRight = $(`<div class="relative flex items-center"><div class="absolute inset-0 pointer-events-none grid-lines"></div></div>`);
+          columns.forEach(col => {
+            const offset = differenceInDays(col.date, minDate);
+            const left = (offset / totalDays) * 100;
+            $rowRight.find('.grid-lines').append(`<div class="absolute top-0 bottom-0 border-l border-slate-100" style="left: ${left}%"></div>`);
+          });
+
+          $row.append($rowLeft).append($rowRight);
+          $body.append($row);
+        });
+
+        let linesHtml = '';
+        tasks.forEach((task, i) => {
+          task.dependencies.forEach(depId => {
+            const depIdx = tasks.findIndex(t => t.id === depId);
+            if (depIdx === -1) return;
+            const depTask = tasks[depIdx];
+            
+            const dStart = parseDate(depTask.startDate);
+            const dEnd = parseDate(depTask.endDate);
+            const dOffset = differenceInDays(dStart, minDate);
+            const dDur = Math.max(0, differenceInDays(dEnd, dStart)) || (depTask.isMilestone ? 0 : 1);
+            const dLeft = Math.max(0, Math.min(100, (dOffset / totalDays) * 100));
+            const dWidth = Math.max(0, Math.min(100 - dLeft, (dDur / totalDays) * 100));
+
+            const fromX = dLeft + (depTask.isMilestone ? 0 : dWidth);
+            const fromY = (depIdx * rowHeight) + (rowHeight / 2);
+
+            const start = parseDate(task.startDate);
+            const offsetDays = differenceInDays(start, minDate);
+            const leftPercentage = Math.max(0, Math.min(100, (offsetDays / totalDays) * 100));
+
+            const toX = leftPercentage;
+            const toY = (i * rowHeight) + (rowHeight / 2);
+            const midX = Math.max(fromX + 1, toX - 1);
+
+            linesHtml += `
+              <g>
+                <line x1="${fromX}%" y1="${fromY}" x2="${midX}%" y2="${fromY}" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4,2" />
+                <line x1="${midX}%" y1="${fromY}" x2="${midX}%" y2="${toY}" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4,2" />
+                <line x1="${midX}%" y1="${toY}" x2="${toX}%" y2="${toY}" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrowhead)" />
+              </g>
+            `;
+          });
+        });
+
+        const svgHtml = `<svg class="absolute inset-0 z-0 w-full h-full pointer-events-none" id="gantt-lines" preserveAspectRatio="none">
+          <defs>
+            <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+              <polygon points="0 0, 6 3, 0 6" fill="#94a3b8" />
+            </marker>
+          </defs>
+          ${linesHtml}
+        </svg>`;
+        
+        const $svgLayer = $(`<div class="absolute top-0 bottom-0 left-[250px] right-0 pointer-events-none">${svgHtml}</div>`);
+        $body.append($svgLayer);
+
+        tasks.forEach((task, i) => {
+          const start = parseDate(task.startDate);
+          const end = parseDate(task.endDate);
+          const offsetDays = differenceInDays(start, minDate);
+          const durationDays = Math.max(0, differenceInDays(end, start)) || (task.isMilestone ? 0 : 1);
+
+          let leftPercentage = Math.max(0, Math.min(100, (offsetDays / totalDays) * 100));
+          let widthPercentage = Math.max(0, Math.min(100 - leftPercentage, (durationDays / totalDays) * 100));
+
+          const color = task.color || '#e60000';
+          const top = i * rowHeight;
+
+          let $item;
+          if (task.isMilestone) {
+            $item = $(`
+              <div class="absolute z-10 flex flex-col items-center justify-center transform -translate-x-1/2 pointer-events-auto" style="left: ${leftPercentage}%; top: ${top + 26}px; width: 28px; height: 28px">
+                <div class="w-4 h-4 rotate-45 border-2 border-white shadow-sm" style="background-color: ${color}"></div>
+                <span class="absolute top-8 whitespace-nowrap text-[9px] font-bold uppercase tracking-wider drop-shadow-md" style="color: ${color}">${formatDateMonthDay(start)}</span>
+              </div>
+            `);
+          } else {
+            $item = $(`
+              <div class="absolute z-10 rounded-full shadow-sm flex items-center overflow-hidden border border-black/10 px-3 pointer-events-auto" style="left: ${leftPercentage}%; width: max(${widthPercentage}%, 120px); top: ${top + 24}px; height: 32px; background-color: ${color}; opacity: 0.95">
+                ${task.progress > 0 ? `<div class="absolute top-0 bottom-0 left-0 bg-black/20" style="width: ${task.progress}%"></div>` : ''}
+                ${task.progress < 100 ? `<div class="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white/20 to-transparent pointer-events-none"></div>` : ''}
+                <span class="relative text-[10px] font-bold text-white truncate drop-shadow-sm w-full select-none">${task.progress === 100 ? 'Completed' : `In Progress (${task.progress}%)`}</span>
+              </div>
+            `);
+          }
+          $svgLayer.append($item);
+        });
+
+        feather.replace();
+      }
+
+      function shiftDependentTasks(taskId, diffDays, visited = new Set()) {
+        if (diffDays === 0 || visited.has(taskId)) return;
+        visited.add(taskId);
+        
+        tasks.forEach((t) => {
+          if (t.dependencies && t.dependencies.includes(taskId)) {
+            if (t.startDate) {
+              const newStart = addDays(parseDate(t.startDate), diffDays);
+              t.startDate = formatDateYYYYMMDD(newStart);
+            }
+            if (t.endDate) {
+              const newEnd = addDays(parseDate(t.endDate), diffDays);
+              t.endDate = formatDateYYYYMMDD(newEnd);
+            }
+            shiftDependentTasks(t.id, diffDays, visited);
+          }
+        });
+      }
+
+      function render() {
+        $('#project-name').val(projectName || '');
+        isRendering = true;
+        $('#project-name').val(projectName);
+        
+        $('.view-btn').each(function() {
+          if ($(this).data('view') === viewMode) {
+            $(this).removeClass('text-slate-500 hover:bg-slate-50').addClass('bg-slate-100 text-slate-800');
+          } else {
+            $(this).removeClass('bg-slate-100 text-slate-800').addClass('text-slate-500 hover:bg-slate-50');
+          }
+        });
+
+        renderTaskEditor();
+        renderGanttChart();
+        saveState();
+        isRendering = false;
+      }
+
+      $('#task-list').on('input', 'input', function() {
+        if (isRendering) return;
+        const $t = $(this);
+        const idx = $t.data('idx');
+        if ($t.hasClass('task-name')) tasks[idx].name = $t.val();
+        else if ($t.hasClass('task-start')) {
+          tasks[idx].startDate = $t.val();
+          if (tasks[idx].isMilestone) {
+            const oldEnd = parseDate(tasks[idx].endDate);
+            tasks[idx].endDate = tasks[idx].startDate;
+            const newEnd = parseDate(tasks[idx].endDate);
+            if (!isNaN(oldEnd) && !isNaN(newEnd)) {
+              const diffDays = Math.round((newEnd - oldEnd) / (1000 * 60 * 60 * 24));
+              shiftDependentTasks(tasks[idx].id, diffDays);
+            }
+          }
+        }
+        else if ($t.hasClass('task-end')) {
+          const oldEnd = parseDate(tasks[idx].endDate);
+          tasks[idx].endDate = $t.val();
+          const newEnd = parseDate(tasks[idx].endDate);
+          if (!isNaN(oldEnd) && !isNaN(newEnd)) {
+            const diffDays = Math.round((newEnd - oldEnd) / (1000 * 60 * 60 * 24));
+            shiftDependentTasks(tasks[idx].id, diffDays);
+          }
+        }
+        else if ($t.hasClass('task-owner')) tasks[idx].owner = $t.val();
+        else if ($t.hasClass('task-deps')) tasks[idx].dependencies = $t.val().split(',').map(s=>s.trim()).filter(Boolean);
+        else if ($t.hasClass('task-color')) tasks[idx].color = $t.val();
+        else if ($t.hasClass('task-progress')) {
+          tasks[idx].progress = parseInt($t.val(), 10);
+          $t.siblings('span').find('.prog-val').text(tasks[idx].progress);
+        }
+        else if ($t.hasClass('task-milestone')) {
+          tasks[idx].isMilestone = $t.is(':checked');
+          if (tasks[idx].isMilestone) tasks[idx].endDate = tasks[idx].startDate; 
+        }
+        
+        if ($t.hasClass('task-milestone') || $t.hasClass('task-start') || $t.hasClass('task-end')) {
+          render();
+        } else {
+          renderGanttChart();
+          saveState();
+        }
+      });
+
+      $('#task-list').on('click', '.btn-remove-task', function() {
+        const idx = $(this).data('idx');
+        tasks.splice(idx, 1);
+        render();
+      });
+
+      $('#btn-export').on('click', async function() {
+        const btn = $(this);
+        const ogHtml = btn.html();
+        btn.html(`<i data-feather="loader" class="w-4 h-4 animate-spin"></i> Generating...`).prop('disabled', true);
+        feather.replace();
+
+        setTimeout(async () => {
+          try {
+            const pptx = new PptxGenJS();
+            pptx.layout = 'LAYOUT_16x9';
+
+            const slideH = 5.625;
+            const vfRed = 'E60000';
+            const vfDark = '333333';
+            const vfGrey = 'EBECED';
+
+            const validTasks = tasks.filter(t => t.startDate && t.endDate);
+            let minDate = new Date();
+            let maxDate = addDays(minDate, 30);
+            let totalDays = 30;
+            if (validTasks.length > 0) {
+              const starts = validTasks.map(t => parseDate(t.startDate));
+              const ends = validTasks.map(t => parseDate(t.endDate));
+              minDate = addDays(new Date(Math.min(...starts.map(d=>d.getTime()))), -2);
+              maxDate = addDays(new Date(Math.max(...ends.map(d=>d.getTime()))), 5);
+              totalDays = Math.max(1, differenceInDays(maxDate, minDate));
+            }
+
+            const maxAllowedRows = 10;
+            const numSlides = Math.ceil(tasks.length / maxAllowedRows) || 1;
+            const maxRows = Math.ceil(tasks.length / numSlides);
+            const rowH = Math.min(0.45, 3.8 / (maxRows || 1));
+            const startY = 1.6;
+            const labelX = 0.3; const labelW = 2.0;
+            const ownerX = 2.4; const ownerW = 1.0;
+            const chartX = 3.6; const chartW = 6.0;
+
+            const createSlide = () => {
+              const slide = pptx.addSlide();
+              slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: '100%', h: 0.8, fill: { color: vfRed } });
+              slide.addText(`Project Timeline: ${projectName}`, {
+                x: 0.4, y: 0.15, w: 8, h: 0.5,
+                fontSize: 22, fontFace: 'Arial', color: 'FFFFFF', bold: true
+              });
+              slide.addText(formatDateMonthDay(new Date()), {
+                x: 8.0, y: 0.3, w: 1.5, h: 0.3,
+                fontSize: 10, fontFace: 'Arial', color: 'FFFFFF', align: 'right'
+              });
+
+              slide.addShape(pptx.ShapeType.rect, {
+                x: 0.2, y: 1.0, w: 9.6, h: 0.4, fill: { color: vfGrey }
+              });
+              const headerFmt = { fontFace: 'Arial', fontSize: 10, bold: true, color: vfDark, y: 1.05, h: 0.3 };
+              slide.addText('TASK NAME', { ...headerFmt, x: labelX, w: labelW });
+              slide.addText('OWNER', { ...headerFmt, x: ownerX, w: ownerW });
+
+              let lastMonth = -1;
+              window._wcount = 1;
+              
+              for (let i = 0; i <= totalDays; i++) {
+                 const d = addDays(minDate, i);
+                 let shouldDraw = false;
+                 let label = '';
+
+                 if (viewMode === 'months') {
+                    if (d.getMonth() !== lastMonth) {
+                        shouldDraw = true;
+                        label = formatDateMonthYear(d).toUpperCase();
+                        lastMonth = d.getMonth();
+                    }
+                 } else if (viewMode === 'mcount') {
+                    if (d.getMonth() !== lastMonth) {
+                        shouldDraw = true;
+                        if (lastMonth === -1) window._mcount = 1;
+                        label = `M${window._mcount++}`;
+                        lastMonth = d.getMonth();
+                    }
+                 } else if (viewMode === 'weeks') {
+                    if (d.getDay() === 1) { 
+                        shouldDraw = true;
+                        label = formatDateMonthDay(d);
+                    }
+                 } else if (viewMode === 'wcount') {
+                    if (d.getDay() === 1) { 
+                        shouldDraw = true;
+                        if (!window._wcount) window._wcount = 1;
+                        label = `W${window._wcount++}`;
+                    }
+                 } else {
+                    const step = totalDays > 40 ? 7 : totalDays > 15 ? 2 : 1;
+                    if (i % step === 0) {
+                       shouldDraw = true;
+                       label = formatDateDayMonth(d);
+                    }
+                 }
+
+                 if (shouldDraw) {
+                    const offsetDays = differenceInDays(d, minDate);
+                    const xPos = chartX + ((offsetDays / totalDays) * chartW);
+                    if (xPos >= chartX && xPos <= chartX + chartW - 0.3) {
+                       slide.addText(label, {
+                          x: xPos, y: 1.05, w: 1.2, h: 0.3,
+                          fontFace: 'Arial', fontSize: 8, bold: true, color: vfDark
+                       });
+                       slide.addShape(pptx.ShapeType.line, {
+                          x: xPos, y: 1.4, w: 0, h: slideH - 1.8,
+                          line: { color: 'CCCCCC', width: 0.5, dashType: 'dash' }
+                       });
+                    }
+                 }
+              }
+              return slide;
+            };
+
+            if (tasks.length === 0) {
+              const slide = createSlide();
+              slide.addText('No tasks to display.', { x: 0.5, y: 1.5, fontSize: 14, color: vfDark });
+            } else {
+              let currentSlide = createSlide();
+              let rowCount = 0;
+
+              tasks.forEach((task) => {
+                if (rowCount >= maxRows) {
+                   currentSlide = createSlide();
+                   rowCount = 0;
+                }
+                const yPos = startY + (rowCount * rowH);
+
+                if (rowCount % 2 === 0) {
+                    currentSlide.addShape(pptx.ShapeType.rect, {
+                        x: 0.2, y: yPos - 0.05, w: 9.6, h: rowH, fill: { color: 'F9F9F9' }
+                    });
+                }
+
+                currentSlide.addText(`${task.id}: ${task.name}`, {
+                    x: labelX, y: yPos, w: labelW, h: rowH - 0.1,
+                    fontSize: 10, fontFace: 'Arial', color: vfDark, bold: true
+                });
+                currentSlide.addText(task.owner || 'Unassigned', {
+                    x: ownerX, y: yPos, w: ownerW, h: rowH - 0.1,
+                    fontSize: 9, fontFace: 'Arial', color: '666666'
+                });
+
+                const start = parseDate(task.startDate);
+                const end = parseDate(task.endDate);
+                const startOffsetDays = differenceInDays(start, minDate);
+                const durationDays = Math.max(0, differenceInDays(end, start));
+
+                let xPos = chartX + ((startOffsetDays / totalDays) * chartW);
+                let barW = (durationDays / totalDays) * chartW;
+                if (barW < 0.05) barW = 0.05;
+
+                const rawColor = task.color ? task.color.replace('#', '') : vfRed;
+
+                if (task.isMilestone) {
+                    currentSlide.addShape(pptx.ShapeType.diamond, {
+                        x: xPos - 0.1, y: yPos + 0.05, w: 0.2, h: 0.2,
+                        fill: { color: rawColor },
+                        line: { color: 'FFFFFF', width: 1 }
+                    });
+                    currentSlide.addText(formatDateMonthDay(start), {
+                        x: xPos - 0.5, y: yPos + 0.25, w: 1.0, h: 0.15,
+                        fontSize: 7, fontFace: 'Arial', color: rawColor, align: 'center', bold: true
+                    });
+                } else {
+                    currentSlide.addShape(pptx.ShapeType.roundRect, {
+                        x: xPos, y: yPos + 0.05, w: barW, h: 0.2,
+                        fill: { color: rawColor },
+                        rectRadius: 0.1
+                    });
+                    if (task.progress > 0) {
+                        currentSlide.addShape(pptx.ShapeType.roundRect, {
+                            x: xPos, y: yPos + 0.05, w: barW * (task.progress / 100), h: 0.2,
+                            fill: { color: '000000', transparency: 60 },
+                            rectRadius: 0.1
+                        });
+                    }
+                    if (barW > 0.5) {
+                        currentSlide.addText(`${task.progress}%`, {
+                           x: xPos + 0.05, y: yPos + 0.05, w: barW - 0.1, h: 0.2,
+                           fontSize: 7, fontFace: 'Arial', color: 'FFFFFF', align: 'left', bold: true
+                        });
+                    }
+                }
+                rowCount++;
+              });
+            }
+
+            await pptx.writeFile({ fileName: `${projectName.replace(/\s+/g, '_')}_Timeline.pptx` });
+
+          } catch (error) {
+            console.error(error);
+            alert('Export failed.');
+          } finally {
+            btn.html(ogHtml).prop('disabled', false);
+            feather.replace();
+          }
+        }, 50);
+      });
+
+      render();
+    });
+  </script>
+</body>
+</html>
